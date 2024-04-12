@@ -3,6 +3,7 @@ package com.example.aiproject
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -14,24 +15,19 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
+
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
+
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
+
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
@@ -39,16 +35,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
+
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,30 +52,41 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
-import androidx.hilt.navigation.compose.hiltViewModel
-
 import com.example.aiproject.ui.theme.AiProjectTheme
-import kotlinx.coroutines.runBlocking
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+
         val Environments = listOf("Indoor", "Outdoor")
         val Hydration = listOf("Always watering", "Sometimes watering")
-        val others = listOf("dark roots","wilting ", "yellow leafs" , "fangus or mold" )
+        val others = listOf("Dark roots","Wilting", "Yellow leafs" , "Fangus or mold" )
+
+        var door=""
+        var water=""
+        var leaf=""
+
+        val client=RetrofitClient.instance
 
         super.onCreate(savedInstanceState)
         setContent {
             AiProjectTheme {
+                var issue by remember {
+                    mutableStateOf("")
+                }
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = colorResource(id = R.color.bg)
@@ -153,15 +158,44 @@ class MainActivity : ComponentActivity() {
                         ){
 
                             Column{
-                                dropdown(Environments,"Environment")
-                                dropdown(Hydration,"Hydration Frequencies")
-                                dropdown(others,"Other symptoms")
+                                dropdown(Environments,"Environment"){
+                                    door=it
+                                }
+                                dropdown(Hydration,"Hydration Frequencies"){
+                                    water=it
+                                }
+                                dropdown(others,"Other symptoms"){
+                                    leaf=it
+                                }
 
-                                showDisease(
-                                    {}
-                                )
+                                showDisease{
+                                    val call=client.getIssue(
+                                        Request(door, water, leaf)
+                                    )
+                                        call.enqueue(object : Callback<Responce>{
+                                            override fun onResponse(
+                                                call: Call<Responce>,
+                                                response: Response<Responce>
+                                            ) {
+                                                issue="The plant is suffering from ${response.body()?.issue}"
+                                            }
+
+                                            override fun onFailure(
+                                                call: Call<Responce>,
+                                                t: Throwable
+                                            ) {
+                                                Toast.makeText(
+                                                    baseContext,
+                                                    t.localizedMessage,
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                                issue="Check your connection then try again"
+                                            }
+
+                                        })
+                                }
                                 Text(
-                                    text = " the plant is suffering from  ",
+                                    text = issue,
                                     fontFamily = FontFamily(Font(R.font.roboto_bolditalic)),
                                     fontSize = 18.sp,
                                     textAlign = TextAlign.Center,
@@ -186,7 +220,7 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun dropdown(mCities:List<String>,Label:String){
+fun dropdown(mCities:List<String>,Label:String,selected:(item:String)->Unit){
     var mExpanded by remember { mutableStateOf(false) }
     var mSelectedText by remember { mutableStateOf("") }
 
@@ -207,6 +241,7 @@ fun dropdown(mCities:List<String>,Label:String){
 
                     mTextFieldSize = coordinates.size.toSize()
                 },
+            readOnly = true,
             label = {
 
                 Text(
@@ -234,6 +269,14 @@ fun dropdown(mCities:List<String>,Label:String){
                 text = { Text(text = s)},
                 onClick = {
                     mSelectedText=mCities[index]
+                    selected(when(mSelectedText){
+                        "Always watering" -> "Always"
+                        "Sometimes watering"->"Sometimes"
+                        "Dark roots"->"Darkroot"
+                        "Yellow leafs"->"Yellow_leaves"
+                        "Fangus or mold"->"Fungus"
+                        else -> mSelectedText
+                    })
                     mExpanded=false
                 }) }
         }
