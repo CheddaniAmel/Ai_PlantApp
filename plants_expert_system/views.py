@@ -77,19 +77,20 @@ def getIssue(request):
 
     find = False
     for i in range(len(issues)):
-        result = KB.ask(expr(f'{issues[i]}(plant)'))
 
-        if (result != False):
-            print(responces[i])
+        result = list(fol_bc_ask(KB, expr(f'{issues[i]}(x)')))
+
+        if result:
+            find = True
             data = {
                 'issue': responces[i]
             }
-            find = True
+            print(data)
 
             return JsonResponse(data)
 
-    if find == False:
-        return JsonResponse({'issue': "There are no issues"})
+    """if find == False:
+        return JsonResponse({'issue': "There are no issues"})"""
 
 
 
