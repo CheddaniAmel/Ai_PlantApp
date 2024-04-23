@@ -3,4 +3,6 @@ Mini Expert system aims to assist plant enthusiasts in diagnosing issues with th
 <h2>Tech used:</h2>
 -User interface: Android app<br/>
 -Backend: Django</br>
--Aima python library 
+-Aima python library <br/>
+<img src="https://github.com/CheddaniAmel/Ai_PlantApp/assets/75329424/367e7521-cd68-4b29-ad6b-3a0709a570eb" height=600 width=300>
+
